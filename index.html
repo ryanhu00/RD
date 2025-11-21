@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Running Dog</title>
+    <style>
+      body {
+        font-family: arial;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background-color: #000;
+        position: relative;
+      }
+      canvas {
+        border: 0;
+        background-color: black;
+        display: block;
+        margin: auto;
+        z-index: 1;
+        max-width: 95vw;
+        max-height: 95vh;
+      }
+      #overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        z-index: 2;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        color: white;
+      }
+      #loading-bar {
+        width: 80%;
+        height: 10px;
+        background: #444;
+        overflow: hidden;
+        border-radius: 5px;
+        margin-bottom: 20px;
+      }
+      #loading-bar-inner {
+        height: 100%;
+        width: 0;
+        background: #fff;
+        transition: width 0.3s ease;
+      }
+      #status {
+        font-size: 14px;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="overlay">
+      <div id="loading-bar">
+        <div id="loading-bar-inner"></div>
+      </div>
+      <div id="status">Loading...</div>
+    </div>
+    <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
+    <script type='text/javascript'>
+      var statusElement = document.getElementById('status');
+      var loadingBarInner = document.getElementById('loading-bar-inner');
+      var overlay = document.getElementById('overlay');
+
+      var Module = {
+        print: (function() {
+          return (...args) => {
+            var text = args.join(' ');
+            console.log(text);
+          };
+        })(),
+        canvas: (() => {
+          var canvas = document.getElementById('canvas');
+          canvas.addEventListener("webglcontextlost", (e) => {
+            alert('WebGL context lost. You will need to reload the page.');
+            e.preventDefault();
+          }, false);
+          return canvas;
+        })(),
+        setStatus: (text) => {
+          if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
+          if (text === Module.setStatus.last.text) return;
+          var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+          var now = Date.now();
+          if (m && now - Module.setStatus.last.time < 30) return;
+          Module.setStatus.last.time = now;
+          Module.setStatus.last.text = text;
+          
+          if (m) {
+            // Extract progress information
+            var progress = parseInt(m[2]) / parseInt(m[4]) * 100;
+            loadingBarInner.style.width = progress + '%';
+            text = m[1];
+          }
+          
+          statusElement.innerHTML = text;
+          
+          // Hide loading screen when ready
+          if (!text || text === 'All downloads complete.') {
+            loadingBarInner.style.width = '100%';
+            setTimeout(() => {
+              overlay.style.display = 'none';
+            }, 500);
+          }
+        },
+        totalDependencies: 0,
+        monitorRunDependencies: (left) => {
+          this.totalDependencies = Math.max(this.totalDependencies, left);
+          Module.setStatus(left ? 'Loading... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+        }
+      };
+
+      Module.setStatus('Loading...');
+      window.onerror = (event) => {
+        Module.setStatus('Error occurred, check console');
+        Module.setStatus = (text) => {
+          if (text) console.error('[post-exception status] ' + text);
+        };
+      };
+    </script>
+    <script async type="text/javascript" src="game.js"></script>
+  </body>
+</html>
